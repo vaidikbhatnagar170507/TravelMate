@@ -62,23 +62,53 @@ const PORT = process.env.PORT || 5000;
 let firebaseAdminApp;
 
 try {
-  const serviceAccountPath = path.join(
-    __dirname,
-    "firebase-service-account.json"
-  );
+  /*
+   * Local development:
+   * server/firebase-service-account.json
+   *
+   * Render:
+   * /etc/secrets/firebase-service-account.json
+   *
+   * Render Secret File will use the same filename.
+   */
 
-  if (!fs.existsSync(serviceAccountPath)) {
+  const configuredServiceAccountPath =
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+
+  const renderSecretPath =
+    "/etc/secrets/firebase-service-account.json";
+
+  const localServiceAccountPath =
+    path.join(
+      __dirname,
+      "firebase-service-account.json"
+    );
+
+  const possibleServiceAccountPaths = [
+    configuredServiceAccountPath,
+    renderSecretPath,
+    localServiceAccountPath,
+  ].filter(Boolean);
+
+  const serviceAccountPath =
+    possibleServiceAccountPaths.find(
+      (filePath) =>
+        fs.existsSync(filePath)
+    );
+
+  if (!serviceAccountPath) {
     throw new Error(
-      "firebase-service-account.json was not found inside the server folder."
+      "Firebase service account file was not found. Expected it at /etc/secrets/firebase-service-account.json on Render or server/firebase-service-account.json locally."
     );
   }
 
-  const serviceAccount = JSON.parse(
-    fs.readFileSync(
-      serviceAccountPath,
-      "utf8"
-    )
-  );
+  const serviceAccount =
+    JSON.parse(
+      fs.readFileSync(
+        serviceAccountPath,
+        "utf8"
+      )
+    );
 
   firebaseAdminApp =
     getApps().length > 0
@@ -89,7 +119,7 @@ try {
         });
 
   console.log(
-    "Firebase Admin connected successfully."
+    `Firebase Admin connected successfully using ${serviceAccountPath}`
   );
 } catch (error) {
   console.error(
@@ -115,7 +145,7 @@ const GEMINI_API_KEY =
 
 if (!GEMINI_API_KEY) {
   console.warn(
-    "WARNING: GEMINI_API_KEY is missing. AI endpoints will not work until it is added to the root .env file."
+    "WARNING: GEMINI_API_KEY is missing. AI endpoints will not work until it is added to the environment variables."
   );
 }
 
@@ -135,7 +165,7 @@ const UNSPLASH_ACCESS_KEY =
 
 if (!UNSPLASH_ACCESS_KEY) {
   console.warn(
-    "WARNING: UNSPLASH_ACCESS_KEY is missing. Destination images will not work until it is added to the root .env file."
+    "WARNING: UNSPLASH_ACCESS_KEY is missing. Destination image requests will return a service-not-configured response."
   );
 }
 
@@ -398,6 +428,7 @@ app.delete(
        * and any future nested subcollections
        * underneath the user's document.
        */
+
       await db.recursiveDelete(
         userReference
       );
@@ -414,6 +445,7 @@ app.delete(
        * ID token, so the client cannot choose
        * another user's UID.
        */
+
       await adminAuth.deleteUser(
         uid
       );
@@ -773,6 +805,7 @@ app.post(
       return res.status(201).json({
         message:
           "Trip saved successfully.",
+
         trip:
           serializeTrip(
             savedTrip
@@ -867,6 +900,7 @@ app.put(
       return res.json({
         message:
           "Trip updated successfully.",
+
         trip:
           serializeTrip(
             updatedTrip
@@ -2086,7 +2120,9 @@ Return ONLY valid JSON.
                 name:
                   annotation.name ||
                   "",
-                url: annotation.url,
+
+                url:
+                  annotation.url,
               });
             }
           }
@@ -2195,9 +2231,10 @@ Return ONLY valid JSON.
 
 app.listen(
   PORT,
+  "0.0.0.0",
   () => {
     console.log(
-      `TravelMate AI server running on http://localhost:${PORT}`
+      `TravelMate AI server running on port ${PORT}`
     );
   }
 );
