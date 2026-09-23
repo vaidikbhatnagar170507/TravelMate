@@ -1,0 +1,14 @@
+node_modules
+dist
+
+.env
+.env.local
+.env.*.local
+
+server/firebase-service-account.json
+
+.idea/
+android/.idea/
+
+*.jks
+*.keystore
