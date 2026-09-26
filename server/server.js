@@ -397,6 +397,97 @@ app.get(
     }
   }
 );
+/* =========================================================
+   ACCOUNT - CREATE / UPDATE CURRENT USER PROFILE
+========================================================= */
+
+app.post(
+  "/api/account/profile",
+  requireAuth,
+  async (req, res) => {
+    const uid = req.user.uid;
+
+    try {
+      const name =
+        String(
+          req.body?.name || ""
+        ).trim();
+
+      const email =
+        String(
+          req.body?.email ||
+            req.user.email ||
+            ""
+        ).trim();
+
+      if (!name) {
+        return res.status(400).json({
+          error:
+            "Name is required.",
+        });
+      }
+
+      const userReference =
+        getUserDocument(uid);
+
+      await userReference.set(
+        {
+          uid,
+
+          name,
+
+          email,
+
+          createdAt:
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp(),
+        },
+        {
+          merge: true,
+        }
+      );
+
+      const savedUser =
+        await userReference.get();
+
+      const userData =
+        savedUser.data() || {};
+
+      return res.status(201).json({
+        message:
+          "User profile created successfully.",
+
+        user: {
+          uid,
+
+          name:
+            userData.name || name,
+
+          email:
+            userData.email || email,
+
+          createdAt:
+            userData.createdAt || null,
+
+          updatedAt:
+            userData.updatedAt || null,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Create user profile error:",
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          "Unable to create your user profile.",
+      });
+    }
+  }
+);
 
 /* =========================================================
    ACCOUNT - DELETE CURRENT USER ACCOUNT
