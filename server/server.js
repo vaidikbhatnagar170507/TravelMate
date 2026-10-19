@@ -2047,7 +2047,12 @@ app.post("/api/hotels", requireAuth, async (req, res) => {
       source: "OpenStreetMap",
     });
   } catch (error) {
-    console.error("TravelMate hotel search error:", error.message);
+    console.error("TravelMate hotel search error:", {
+  message: error?.message,
+  cause: error?.cause?.message,
+  code: error?.cause?.code,
+  stack: error?.stack,
+});
 
     return res.status(502).json({
       error:
