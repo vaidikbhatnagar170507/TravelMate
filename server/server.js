@@ -156,7 +156,7 @@ const ai = new GoogleGenAI({
 const MODEL =
   "gemini-3.5-flash-lite";
 
-/* =========================================================
+/* ===============================================x==========
    UNSPLASH
 ========================================================= */
 
@@ -1372,6 +1372,7 @@ app.delete(
 
 app.post(
   "/api/generate-itinerary",
+  requireAuth,
   async (req, res) => {
     try {
       const {
@@ -1880,441 +1881,182 @@ ${message.trim()}
   }
 );
 
+
 /* =========================================================
-   GEMINI + GOOGLE MAPS - DYNAMIC HOTELS
+   OPENSTREETMAP - HOTEL SEARCH
+   Keeps the existing /api/hotels response compatible
 ========================================================= */
 
-app.post(
-  "/api/hotels",
-  async (req, res) => {
-    try {
-      const {
-        destination,
-        country = "",
-        days = 1,
-        travellers = 2,
-        budget = 0,
-        accommodationBudget = 0,
-        style = "Balanced",
-      } = req.body;
-
-      if (
-        !destination ||
-        !String(destination).trim()
-      ) {
-        return res.status(400).json({
-          error:
-            "Destination is required.",
-        });
-      }
-
-      const numericBudget =
-        Number(budget) || 0;
-
-      const numericAccommodationBudget =
-        Number(
-          accommodationBudget
-        ) || 0;
-
-      const numericDays =
-        Math.max(
-          1,
-          Number(days) || 1
-        );
-
-      const numericTravellers =
-        Math.max(
-          1,
-          Number(travellers) || 1
-        );
-
-      const nightlyBudget =
-        numericAccommodationBudget >
-        0
-          ? numericAccommodationBudget /
-            numericDays
-          : numericBudget > 0
-            ? (numericBudget * 0.36) /
-              numericDays
-            : 0;
-
-      const destinationLabel =
-        country
-          ? `${destination}, ${country}`
-          : destination;
-
-      const prompt = `
-You are TravelMate's hotel recommendation engine.
-
-Use GOOGLE MAPS GROUNDING to find REAL hotels in:
-
-${destinationLabel}
-
-Return exactly 10 UNIQUE hotels that actually exist in Google Maps.
-
-TRIP DETAILS:
-Destination: ${destination}
-Country: ${country}
-Travellers: ${numericTravellers}
-Trip duration: ${numericDays} days
-Total trip budget: ₹${numericBudget.toLocaleString(
-        "en-IN"
-      )}
-Accommodation budget: ₹${numericAccommodationBudget.toLocaleString(
-        "en-IN"
-      )}
-Approx accommodation target/night: ₹${Math.round(
-        nightlyBudget
-      ).toLocaleString("en-IN")}
-Travel style: ${style}
-
-IMPORTANT:
-- Use Google Maps as the source of truth for hotel identity.
-- Do NOT invent hotels.
-- Do NOT invent ratings.
-- Do NOT invent review counts.
-- Do NOT invent addresses.
-- Do NOT invent exact nightly prices.
-- If a reliable nightly price is unavailable, use null.
-- Do not turn a generic price into a nightly hotel price.
-- Prefer hotels appropriate for the accommodation budget.
-- Do not recommend only luxury hotels.
-- Consider travel style.
-- Prefer practical tourist locations.
-- Prefer strong ratings and meaningful review volume.
-- Return exactly 10 UNIQUE hotels.
-
-RANKING PRIORITY:
-1. Accommodation budget/value fit
-2. Rating and review volume
-3. Location
-4. Travel style
-5. Overall value
-
-For "reason", explain why the hotel fits this trip and budget.
-
-For "description", provide a short factual description.
-
-For "area" and "address", use Google Maps information.
-
-For "bookingUrl", use a real URL only when available from grounded information.
-Otherwise use an empty string.
-
-Return ONLY valid JSON.
-
-{
-  "destination": "${destination}",
-  "hotels": [
-    {
-      "rank": 1,
-      "name": "string",
-      "rating": null,
-      "ratingCount": null,
-      "area": "string",
-      "address": "string",
-      "pricePerNight": null,
-      "currency": "INR",
-      "priceNote": "string",
-      "description": "string",
-      "reason": "string",
-      "bookingUrl": ""
-    }
-  ]
-}
-`;
-
-      console.log(
-        `Searching hotels for ${destination} using Google Maps...`
-      );
-
-      const interaction =
-        await ai.interactions.create({
-          model: MODEL,
-          input: prompt,
-
-          tools: [
-            {
-              type: "google_maps",
-            },
-          ],
-
-          response_format: {
-            type: "text",
-            mime_type:
-              "application/json",
-
-            schema: {
-              type: "object",
-
-              properties: {
-                destination: {
-                  type: "string",
-                },
-
-                hotels: {
-                  type: "array",
-
-                  items: {
-                    type: "object",
-
-                    properties: {
-                      rank: {
-                        type: "number",
-                      },
-
-                      name: {
-                        type: "string",
-                      },
-
-                      rating: {
-                        type: [
-                          "number",
-                          "null",
-                        ],
-                      },
-
-                      ratingCount: {
-                        type: [
-                          "number",
-                          "null",
-                        ],
-                      },
-
-                      area: {
-                        type: "string",
-                      },
-
-                      address: {
-                        type: "string",
-                      },
-
-                      pricePerNight: {
-                        type: [
-                          "number",
-                          "null",
-                        ],
-                      },
-
-                      currency: {
-                        type: "string",
-                      },
-
-                      priceNote: {
-                        type: "string",
-                      },
-
-                      description: {
-                        type: "string",
-                      },
-
-                      reason: {
-                        type: "string",
-                      },
-
-                      bookingUrl: {
-                        type: "string",
-                      },
-                    },
-
-                    required: [
-                      "rank",
-                      "name",
-                      "rating",
-                      "ratingCount",
-                      "area",
-                      "address",
-                      "pricePerNight",
-                      "currency",
-                      "priceNote",
-                      "description",
-                      "reason",
-                      "bookingUrl",
-                    ],
-                  },
-                },
-              },
-
-              required: [
-                "destination",
-                "hotels",
-              ],
-            },
-          },
-
-          generation_config: {
-            thinking_level:
-              "minimal",
-          },
-        });
-
-      if (
-        !interaction.output_text
-      ) {
-        throw new Error(
-          "Gemini returned an empty hotel response."
-        );
-      }
-
-      const hotelData =
-        JSON.parse(
-          interaction.output_text
-        );
-
-      if (
-        !Array.isArray(
-          hotelData.hotels
-        ) ||
-        hotelData.hotels.length !== 10
-      ) {
-        throw new Error(
-          "AI returned an invalid number of hotels."
-        );
-      }
-
-      const placeCitations = [];
-
-      for (
-        const step of
-          interaction.steps || []
-      ) {
-        if (
-          step.type !==
-          "model_output"
-        ) {
-          continue;
-        }
-
-        for (
-          const contentBlock of
-            step.content || []
-        ) {
-          if (
-            contentBlock.type !==
-              "text" ||
-            !Array.isArray(
-              contentBlock.annotations
-            )
-          ) {
-            continue;
-          }
-
-          for (
-            const annotation of
-              contentBlock.annotations
-          ) {
-            if (
-              annotation.type ===
-                "place_citation" &&
-              annotation.url
-            ) {
-              placeCitations.push({
-                name:
-                  annotation.name ||
-                  "",
-
-                url:
-                  annotation.url,
-              });
-            }
-          }
-        }
-      }
-
-      const hotelsWithSources =
-        hotelData.hotels.map(
-          (hotel, index) => {
-            const hotelName =
-              String(
-                hotel.name || ""
-              ).toLowerCase();
-
-            const matchingCitation =
-              placeCitations.find(
-                (citation) => {
-                  const citationName =
-                    String(
-                      citation.name ||
-                        ""
-                    ).toLowerCase();
-
-                  return (
-                    citationName.includes(
-                      hotelName
-                    ) ||
-                    hotelName.includes(
-                      citationName
-                    )
-                  );
-                }
-              );
-
-            const fallbackCitation =
-              placeCitations[index];
-
-            return {
-              ...hotel,
-
-              sourceUrl:
-                matchingCitation?.url ||
-                fallbackCitation?.url ||
-                hotel.bookingUrl ||
-                "",
-
-              bookingUrl:
-                hotel.bookingUrl ||
-                matchingCitation?.url ||
-                fallbackCitation?.url ||
-                "",
-            };
-          }
-        );
-
-      console.log(
-        `Hotel recommendations generated successfully for ${destination}.`
-      );
-
-      return res.json({
-        destination:
-          hotelData.destination ||
-          destination,
-
-        hotels:
-          hotelsWithSources,
-
-        budget:
-          numericBudget,
-
-        accommodationBudget:
-          numericAccommodationBudget,
-
-        nightlyBudget:
-          Math.round(
-            nightlyBudget
-          ),
-
-        searchedAt:
-          new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error(
-        "TravelMate hotel search error:",
-        error
-      );
-
-      if (isQuotaError(error)) {
-        return res.status(429).json({
-          error:
-            "Hotel search is temporarily busy. Please wait a little and try again.",
-        });
-      }
-
-      return res.status(500).json({
-        error:
-          "Unable to find hotel recommendations right now. Please try again.",
+app.post("/api/hotels", requireAuth, async (req, res) => {
+  try {
+    const {
+      destination,
+      country = "",
+      days = 1,
+      travellers = 2,
+      budget = 0,
+      accommodationBudget = 0,
+    } = req.body;
+
+    if (!destination || !String(destination).trim()) {
+      return res.status(400).json({
+        error: "Destination is required.",
       });
     }
+
+    const destinationLabel = [destination, country]
+      .filter(Boolean)
+      .join(", ");
+
+    // Step 1: Find the destination coordinates using OpenStreetMap.
+    const geocodeUrl = new URL(
+      "https://nominatim.openstreetmap.org/search"
+    );
+
+    geocodeUrl.searchParams.set("q", destinationLabel);
+    geocodeUrl.searchParams.set("format", "jsonv2");
+    geocodeUrl.searchParams.set("limit", "1");
+
+    const geocodeResponse = await fetch(geocodeUrl, {
+      headers: {
+        "User-Agent": "TravelMate/1.0",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!geocodeResponse.ok) {
+      throw new Error("Destination lookup is temporarily unavailable.");
+    }
+
+    const locations = await geocodeResponse.json();
+    const location = locations[0];
+
+    if (!location) {
+      return res.status(404).json({
+        error: "Could not locate this destination. Try a city and country.",
+        hotels: [],
+      });
+    }
+
+    const lat = Number(location.lat);
+    const lon = Number(location.lon);
+
+    // Step 2: Search nearby hotels and similar accommodation.
+    const overpassQuery = `
+      [out:json][timeout:20];
+      (
+        node(around:15000,${lat},${lon})["tourism"~"^(hotel|hostel|guest_house|motel)$"]["name"];
+        way(around:15000,${lat},${lon})["tourism"~"^(hotel|hostel|guest_house|motel)$"]["name"];
+        relation(around:15000,${lat},${lon})["tourism"~"^(hotel|hostel|guest_house|motel)$"]["name"];
+      );
+      out center tags;
+    `;
+
+    const overpassResponse = await fetch(
+      "https://overpass-api.de/api/interpreter",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "TravelMate/1.0",
+        },
+        body: new URLSearchParams({ data: overpassQuery }),
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+
+    if (!overpassResponse.ok) {
+      throw new Error("Hotel listings are temporarily unavailable.");
+    }
+
+    const overpassData = await overpassResponse.json();
+
+    const uniqueHotels = new Map();
+
+    for (const place of overpassData.elements || []) {
+      const tags = place.tags || {};
+      const name = String(tags.name || "").trim();
+
+      if (!name) continue;
+
+      const area = [
+        tags["addr:suburb"],
+        tags["addr:neighbourhood"],
+        tags["addr:city"],
+        tags["addr:town"],
+        tags["addr:state"],
+      ]
+        .filter(Boolean)
+        .filter((value, index, array) => array.indexOf(value) === index)
+        .join(", ");
+
+      const address = [
+        tags["addr:housenumber"],
+        tags["addr:street"],
+        tags["addr:suburb"],
+        tags["addr:city"] || tags["addr:town"],
+        tags["addr:state"],
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      const key = name.toLowerCase();
+
+      if (!uniqueHotels.has(key)) {
+        const mapQuery = `${name} ${area || destinationLabel}`;
+
+        uniqueHotels.set(key, {
+          rank: 0,
+          name,
+          area: area || destinationLabel,
+          address: address || area || destinationLabel,
+          rating: null,
+          ratingCount: null,
+          pricePerNight: null,
+          currency: "INR",
+          priceNote: "",
+          description: "",
+          reason: "",
+          tag: tags.tourism || "Accommodation",
+          sourceUrl:
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`,
+          bookingUrl:
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`,
+        });
+      }
+    }
+
+    const hotels = [...uniqueHotels.values()]
+      .slice(0, 20)
+      .map((hotel, index) => ({
+        ...hotel,
+        rank: index + 1,
+      }));
+
+    console.log(
+      `OpenStreetMap found ${hotels.length} accommodation listings for ${destinationLabel}.`
+    );
+
+    return res.json({
+      destination: destinationLabel,
+      hotels,
+      budget: Number(budget) || 0,
+      accommodationBudget: Number(accommodationBudget) || 0,
+      nightlyBudget: 0,
+      searchedAt: new Date().toISOString(),
+      source: "OpenStreetMap",
+    });
+  } catch (error) {
+    console.error("TravelMate hotel search error:", error.message);
+
+    return res.status(502).json({
+      error:
+        "Hotel listings are temporarily unavailable. Please try again shortly.",
+      hotels: [],
+    });
   }
-);
+});
+
 
 /* =========================================================
    START SERVER
