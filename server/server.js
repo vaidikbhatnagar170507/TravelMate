@@ -53,6 +53,13 @@ app.use(
   })
 );
 
+// Travelora Account Deletion Page
+app.get("/delete-account", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "public", "delete-account.html")
+  );
+});
+
 const PORT = process.env.PORT || 5000;
 
 /* =========================================================
@@ -355,7 +362,7 @@ function serializeReminder(
 app.get("/", (req, res) => {
   res.json({
     message:
-      "TravelMate AI server is running!",
+      "Travelora AI server is running!",
     firebase:
       "Firebase Admin connected",
   });
@@ -547,7 +554,7 @@ app.delete(
 
       return res.json({
         message:
-          "Your TravelMate account and associated data have been permanently deleted.",
+          "Your Travelora account and associated data have been permanently deleted.",
       });
     } catch (error) {
       console.error(
@@ -1657,7 +1664,7 @@ Each day should contain 3 to 5 meaningful activities.
 );
 
 /* =========================================================
-   GEMINI - TRAVELMATE AI ASSISTANT
+   GEMINI - TRAVELORA AI ASSISTANT
 ========================================================= */
 
 app.post(
@@ -1792,7 +1799,7 @@ ${activities}
           : "No saved places yet.";
 
       const prompt = `
-You are TravelMate AI, a helpful personal travel assistant.
+You are Travelora AI, a helpful personal travel assistant.
 
 Answer the user's question using the CURRENT TRIP CONTEXT.
 
@@ -1845,7 +1852,7 @@ ${message.trim()}
 `;
 
       console.log(
-        `TravelMate AI question: "${message.trim()}"`
+        `Travelora AI question: "${message.trim()}"`
       );
 
       const interaction =
@@ -1875,7 +1882,7 @@ ${message.trim()}
       return sendGeminiError(
         res,
         error,
-        "TravelMate AI could not answer right now. Please try again."
+        "Travelora AI could not answer right now. Please try again."
       );
     }
   }
@@ -2047,7 +2054,7 @@ app.post("/api/hotels", requireAuth, async (req, res) => {
       source: "OpenStreetMap",
     });
   } catch (error) {
-    console.error("TravelMate hotel search error:", {
+    console.error("Travelora hotel search error:", {
   message: error?.message,
   cause: error?.cause?.message,
   code: error?.cause?.code,
@@ -2072,7 +2079,7 @@ app.listen(
   "0.0.0.0",
   () => {
     console.log(
-      `TravelMate AI server running on port ${PORT}`
+      `Travelora AI server running on port ${PORT}`
     );
   }
 );

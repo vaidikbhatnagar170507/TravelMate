@@ -1,0 +1,250 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delete Account - Travelora</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f5f6fa;
+      color: #202124;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 430px;
+      background: white;
+      padding: 32px;
+      border-radius: 18px;
+      box-shadow: 0 8px 35px rgba(0,0,0,.08);
+    }
+
+    h1 { margin-top: 0; color: #202124; }
+    p { color: #5f6368; line-height: 1.6; }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      margin: 8px 0 16px;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 8px;
+      background: #202124;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .danger { background: #c62828; }
+    .hidden { display: none; }
+
+    #status {
+      margin-top: 16px;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      font-size: 13px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card">
+    <h1>Travelora</h1>
+    <h2>Delete Your Account</h2>
+
+    <p>
+      Sign in using your registered Travelora account to permanently
+      delete your account and associated data.
+    </p>
+
+    <section id="loginSection">
+      <label for="email">Email Address</label>
+      <input id="email" type="email" placeholder="Enter registered email" autocomplete="email" />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Enter password" autocomplete="current-password" />
+
+      <button id="loginButton">Sign In</button>
+    </section>
+
+    <section id="deleteSection" class="hidden">
+      <p id="signedInUser"></p>
+
+      <p>
+        <strong>Warning:</strong> This action is permanent.
+        Your account, saved trips, reminders and associated
+        Firestore data will be deleted.
+      </p>
+
+      <label>
+        <input id="confirmDelete" type="checkbox" style="width:auto;margin-right:8px" />
+        I understand that this action cannot be undone.
+      </label>
+
+      <button id="deleteButton" class="danger" disabled>
+        Permanently Delete My Account
+      </button>
+
+      <button id="logoutButton">Sign Out</button>
+    </section>
+
+    <p id="status" role="status"></p>
+
+    <p class="note">
+      Need help? Contact
+      <a href="mailto:travelorasupport@gmail.com">
+        travelorasupport@gmail.com
+      </a>
+    </p>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      signOut
+    } from
+      "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+    // Replace these values using your existing root .env file.
+    // Do not use your Firebase service account credentials here.
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnbAFi6Y6cYG4qG2_0eu6jS94K-JalRvo",
+      authDomain: "travelmate-ae5c8.firebaseapp.com",
+      projectId: "travelmate-ae5c8",
+      storageBucket: "travelmate-ae5c8.firebasestorage.app",
+      messagingSenderId: "275955500189",
+      appId: "1:275955500189:web:2a213d51f5a4b230848074",
+      measurementId: "G-0EB5MHSRWH"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const loginSection = document.getElementById("loginSection");
+    const deleteSection = document.getElementById("deleteSection");
+    const status = document.getElementById("status");
+    const loginButton = document.getElementById("loginButton");
+    const deleteButton = document.getElementById("deleteButton");
+    const confirmDelete = document.getElementById("confirmDelete");
+
+    function showStatus(message, error = false) {
+      status.textContent = message;
+      status.style.color = error ? "#c62828" : "#188038";
+    }
+
+    loginButton.addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        showStatus("Please enter your email and password.", true);
+        return;
+      }
+
+      loginButton.disabled = true;
+      showStatus("Signing in...");
+
+      try {
+        const credential = await signInWithEmailAndPassword(
+          auth, email, password
+        );
+
+        loginSection.classList.add("hidden");
+        deleteSection.classList.remove("hidden");
+
+        document.getElementById("signedInUser").textContent =
+          "Signed in as: " + credential.user.email;
+
+        showStatus("Identity verified. Review the deletion warning.");
+      } catch (error) {
+        showStatus(error.message, true);
+      } finally {
+        loginButton.disabled = false;
+      }
+    });
+
+    confirmDelete.addEventListener("change", () => {
+      deleteButton.disabled = !confirmDelete.checked;
+    });
+
+    deleteButton.addEventListener("click", async () => {
+      if (!auth.currentUser || !confirmDelete.checked) return;
+
+      const confirmed = window.confirm(
+        "Are you absolutely sure? Your Travelora account and associated data will be permanently deleted."
+      );
+
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+      showStatus("Deleting your account. Please wait...");
+
+      try {
+        const token = await auth.currentUser.getIdToken();
+
+        const response = await fetch("/api/account", {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Account deletion failed.");
+        }
+
+        await signOut(auth);
+
+        loginSection.classList.add("hidden");
+        deleteSection.classList.add("hidden");
+
+        showStatus(
+          "Your Travelora account and associated data have been permanently deleted."
+        );
+      } catch (error) {
+        showStatus(error.message, true);
+        deleteButton.disabled = false;
+      }
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      await signOut(auth);
+      deleteSection.classList.add("hidden");
+      loginSection.classList.remove("hidden");
+      confirmDelete.checked = false;
+      deleteButton.disabled = true;
+      showStatus("You have been signed out.");
+    });
+  </script>
+</body>
+</html>
